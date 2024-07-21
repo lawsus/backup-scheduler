@@ -1,0 +1,6 @@
+backup_scheduler.log
+backup_scheduler_config.json
+icon.png
+pyrightconfig.json
+.gitattributes
+/.venv
