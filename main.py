@@ -2,8 +2,9 @@ import sys
 import os
 import json
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QListWidget, QFileDialog, QLabel, QComboBox, QDialog
-from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QListWidget, QFileDialog, QLabel, QComboBox, QDialog, QSystemTrayIcon, QMenu, QAction
+from PyQt5.QtCore import QTimer, Qt, QSize
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 import logging
 
 CONFIG_FILE = 'backup_scheduler_config.json'
@@ -18,6 +19,7 @@ class BackupScheduler(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_tasks)
         self.timer.start(60000)  # Check every minute
+        self.setup_tray()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -45,6 +47,68 @@ class BackupScheduler(QWidget):
         self.setWindowTitle('Backup Scheduler')
         self.update_task_list()
         self.show()
+
+    def create_tray_icon(self):
+        # Create a pixmap
+        pixmap = QPixmap(QSize(64, 64))
+        pixmap.fill(Qt.transparent)
+
+        # Create a painter to draw on the pixmap
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Draw a filled circle
+        painter.setBrush(QColor(0, 120, 212))  # Blue color
+        painter.drawEllipse(2, 2, 60, 60)
+
+        # Draw a stylized "B" for "Backup"
+        painter.setPen(Qt.white)
+        painter.setFont(QFont("Arial", 40, QFont.Bold))
+        painter.drawText(pixmap.rect(), Qt.AlignCenter, "B")
+
+        painter.end()
+
+        # Create an icon from the pixmap
+        return QIcon(pixmap)
+
+    def setup_tray(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(self.create_tray_icon())
+
+        # Create the menu
+        self.tray_menu = QMenu()
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(QApplication.instance().quit)
+        self.tray_menu.addAction(quit_action)
+
+        # Add the menu to the tray
+        self.tray_icon.setContextMenu(self.tray_menu)
+
+        self.tray_icon.show()
+
+        # Connect the activated signal to toggle visibility
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.Trigger:
+            self.toggle_window_visibility()
+
+    def toggle_window_visibility(self):
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+            self.activateWindow()
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "Backup Scheduler",
+            "Application was minimized to the system tray",
+            QSystemTrayIcon.Information,
+            2000
+        )
 
     def setup_logging(self):
         logging.basicConfig(filename='backup_scheduler.log', level=logging.INFO,

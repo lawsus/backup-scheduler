@@ -4,3 +4,4 @@ icon.png
 pyrightconfig.json
 .gitattributes
 /.venv
+backup_folder/
